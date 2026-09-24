@@ -10,7 +10,8 @@ import {
   Server, 
   Wifi,
   Radio,
-  Flame
+  Flame,
+  CheckCircle2
 } from 'lucide-react';
 import { useFalcon } from '../../context/FalconContext';
 
@@ -26,6 +27,7 @@ export const Sidebar = () => {
     { id: 'rules', label: 'Network Rules', icon: ShieldCheck },
     { id: 'logs', label: 'Event Logs', icon: FileText },
     { id: 'status', label: 'System Status', icon: Server },
+    { id: 'validation', label: 'Validation Center', icon: CheckCircle2 },
     { id: 'settings', label: 'Settings', icon: Sliders },
   ];
 
@@ -92,10 +94,6 @@ export const Sidebar = () => {
               <span className="text-falcon-textMuted truncate max-w-[125px]" title={currentHost}>
                 {currentHost.split('(')[0].trim()}
               </span>
-            </div>
-            <div className="flex justify-between">
-              <span>TARGET:</span>
-              <span className="text-falcon-accentLight">Raspberry Pi 4B</span>
             </div>
           </div>
         </div>

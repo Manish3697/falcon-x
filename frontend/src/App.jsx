@@ -13,6 +13,7 @@ import { NetworkRulesView } from './components/views/NetworkRulesView';
 import { EventLogsView } from './components/views/EventLogsView';
 import { SystemStatusView } from './components/views/SystemStatusView';
 import { SettingsView } from './components/views/SettingsView';
+import { ValidationCenterView } from './components/views/ValidationCenterView';
 
 const MainContent = () => {
   const { activeTab } = useFalcon();
@@ -35,6 +36,8 @@ const MainContent = () => {
         return <EventLogsView />;
       case 'status':
         return <SystemStatusView />;
+      case 'validation':
+        return <ValidationCenterView />;
       case 'settings':
         return <SettingsView />;
       default:

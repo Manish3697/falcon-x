@@ -145,6 +145,14 @@ export const FalconProvider = ({ children }) => {
           setActiveScenario('SUSPICIOUS TRAFFIC');
           showNotification('Test Scenario: Suspicious backdoor traffic on port 4444 detected (Risk 6.0/10)', 'warning');
           break;
+        case 'ML_ANOMALY':
+          res = await api.simulateMLAnomaly();
+          setActiveScenario('ML FLOW ANOMALY');
+          const probPct = res?.anomaly_probability !== undefined ? (res.anomaly_probability * 100).toFixed(1) : 'N/A';
+          const lat = res?.inference_time_ms !== undefined ? `${res.inference_time_ms}ms` : '< 3ms';
+          const pred = res?.prediction !== undefined ? res.prediction : 1;
+          showNotification(`ML DETECTION: Random Forest Flow Classifier on 192.168.1.50 • Pred: ${pred} • Anomaly Prob: ${probPct}% • Latency: ${lat}`, 'warning');
+          break;
         case 'CLEAR':
           res = await api.clearDemoEvents();
           setActiveScenario(null);

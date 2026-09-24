@@ -9,7 +9,8 @@ import {
   RotateCcw,
   ShieldAlert,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Cpu
 } from 'lucide-react';
 import { useFalcon } from '../../context/FalconContext';
 
@@ -58,7 +59,7 @@ export const TestScenarioBar = () => {
       </div>
 
       {isExpanded && (
-        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           {/* 1. NORMAL TRAFFIC */}
           <button
             onClick={() => handleAction('NORMAL')}
@@ -139,11 +140,25 @@ export const TestScenarioBar = () => {
             <span className="truncate">SUSPICIOUS TRAFFIC</span>
           </button>
 
-          {/* 7. CLEAR EVENTS */}
+          {/* 7. ML FLOW ANOMALY */}
+          <button
+            onClick={() => handleAction('ML_ANOMALY')}
+            disabled={loadingAction !== null}
+            className={`flex items-center justify-center space-x-1.5 px-3 py-2 rounded bg-falcon-card border text-[11px] font-mono font-medium transition-all group shadow-sm ${
+              activeScenario === 'ML FLOW ANOMALY'
+                ? 'border-purple-500 bg-purple-950/40 text-purple-200'
+                : 'border-purple-900/40 hover:border-purple-500/60 text-purple-200'
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
+            <span className="truncate">ML ANOMALY</span>
+          </button>
+
+          {/* 8. CLEAR EVENTS */}
           <button
             onClick={() => handleAction('CLEAR')}
             disabled={loadingAction !== null}
-            className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded bg-falcon-surface border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-[11px] font-mono font-medium transition-all col-span-2 sm:col-span-1 shadow-sm"
+            className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded bg-falcon-surface border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-[11px] font-mono font-medium transition-all shadow-sm"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
             <span className="truncate">CLEAR EVENTS</span>

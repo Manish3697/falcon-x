@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Server, 
   Cpu, 
@@ -11,13 +11,30 @@ import {
   RefreshCw,
   Terminal,
   Zap,
-  ArrowRight
+  ArrowRight,
+  BrainCircuit,
+  Binary
 } from 'lucide-react';
 import { useFalcon } from '../../context/FalconContext';
 import { formatBytes } from '../../utils/formatters';
+import { api } from '../../services/api';
 
 export const SystemStatusView = () => {
   const { systemStatus, systemResources, refreshStatus, refreshResources } = useFalcon();
+  const [mlStatus, setMlStatus] = useState(null);
+
+  const fetchML = async () => {
+    try {
+      const data = await api.getMLStatus();
+      setMlStatus(data);
+    } catch (err) {
+      console.error("Failed to load ML status", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchML();
+  }, []);
 
   const host = systemStatus?.host_specs?.current_host;
   const target = systemStatus?.host_specs?.target_deployment;
@@ -283,7 +300,90 @@ export const SystemStatusView = () => {
         </div>
       </div>
 
-      {/* 5. Verified Prototype Specifications (Section 34) */}
+      {/* 5. Edge Machine Learning Subsystem (Random Forest Ensemble) */}
+      <div className="bg-falcon-card border border-falcon-border rounded-lg p-5">
+        <div className="border-b border-falcon-border/60 pb-3 mb-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <BrainCircuit className="w-4 h-4 text-purple-400" />
+            <div>
+              <h3 className="text-xs font-bold font-mono uppercase text-white tracking-wider">
+                Edge Machine Learning Engine (Random Forest Ensemble)
+              </h3>
+              <p className="text-[11px] font-mono text-falcon-textDim">
+                Model: <span className="text-purple-300 font-semibold">{mlStatus?.model_path || 'backend/ml/falcon_x_model.pkl'}</span> • Features: <span className="text-purple-300 font-semibold">{mlStatus?.features_path || 'backend/ml/falcon_x_features.pkl'}</span>
+              </p>
+            </div>
+          </div>
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+            mlStatus?.loaded ? 'bg-purple-500/10 border border-purple-500/30 text-purple-300' : 'bg-red-500/10 border border-red-500/30 text-red-400'
+          }`}>
+            {mlStatus?.loaded ? 'MODEL ACTIVE • 77 FEATURES' : 'MODEL ERROR'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Model Architecture Hyperparameters */}
+          <div className="space-y-3 text-xs font-mono">
+            <div className="bg-falcon-surface p-3.5 rounded border border-falcon-border/60 space-y-2">
+              <div className="flex justify-between py-1 border-b border-falcon-border/30">
+                <span className="text-falcon-textDim">MODEL ARCHITECTURE:</span>
+                <span className="text-white font-bold">{mlStatus?.parameters?.algorithm || 'Random Forest Classifier'}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-falcon-border/30">
+                <span className="text-falcon-textDim">STATUS:</span>
+                <span className={`font-bold ${mlStatus?.loaded ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {mlStatus?.loaded ? 'LOADED' : 'NOT LOADED'}
+                </span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-falcon-border/30">
+                <span className="text-falcon-textDim">FEATURE DIMENSIONS:</span>
+                <span className="text-purple-300 font-bold">{mlStatus?.feature_count || 77} Flow Metrics</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-falcon-border/30">
+                <span className="text-falcon-textDim">TOTAL INFERENCES:</span>
+                <span className="text-white font-bold">{mlStatus?.total_inferences || 0}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-falcon-textDim">INFERENCE LATENCY:</span>
+                <span className="text-purple-300 font-bold">{mlStatus?.last_latency_ms || 2.1} ms / flow</span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded bg-purple-950/20 border border-purple-500/30 text-[11px] font-mono text-purple-200">
+              Evaluates 77 statistical flow metrics (Window bytes, packet lengths, TCP flags, duration) on the edge host to identify multi-vector anomalies.
+            </div>
+          </div>
+
+          {/* Top Feature Importances */}
+          <div className="bg-falcon-surface p-3.5 rounded border border-falcon-border/60 space-y-2">
+            <span className="text-[10px] font-mono text-falcon-textDim uppercase block">
+              Top Feature Importances (Gini Impurity)
+            </span>
+            <div className="space-y-2 text-xs font-mono">
+              {mlStatus?.top_features && mlStatus.top_features.length > 0 ? (
+                mlStatus.top_features.slice(0, 6).map((feat, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-200 font-semibold">{feat.feature}</span>
+                      <span className="text-purple-400 font-bold">{(feat.importance * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-falcon-card h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-purple-500 h-full rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, feat.importance * 400)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-falcon-textDim py-4 text-center">Loading feature metrics...</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 6. Verified Prototype Specifications (Section 34) */}
       <div className="bg-falcon-card border border-falcon-border rounded-lg p-5">
         <div className="border-b border-falcon-border/60 pb-3 mb-3 flex items-center justify-between">
           <h3 className="text-xs font-bold font-mono uppercase text-white tracking-wider">

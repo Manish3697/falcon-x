@@ -158,8 +158,78 @@ export const api = {
     const res = await fetch(`${API_BASE}/demo/simulate-suspicious-traffic`, { method: 'POST' });
     return res.json();
   },
+  simulateMLAnomaly: async (packetData = {}) => {
+    const defaultData = {
+      src_ip: "192.168.1.50",
+      dst_ip: "192.168.1.1",
+      src_port: 54321,
+      dst_port: 8080,
+      protocol: "TCP",
+      packet_size: 1420,
+      tcp_flags: "S",
+      mac: "BC:24:11:99:88:77",
+      flow_duration: 180000,
+      total_fwd_packets: 60,
+      total_bwd_packets: 2,
+      packets_per_sec: 420.0,
+      bytes_per_sec: 596400.0,
+      init_fwd_win_bytes: 65535.0,
+      is_demo: true,
+      evaluate_detection: true,
+      ...packetData
+    };
+    const res = await fetch(`${API_BASE}/ml_predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(defaultData)
+    });
+    return res.json();
+  },
   clearDemoEvents: async () => {
     const res = await fetch(`${API_BASE}/demo/clear`, { method: 'POST' });
+    return res.json();
+  },
+
+  // Machine Learning Subsystem
+  getMLStatus: async () => {
+    const res = await fetch(`${API_BASE}/ml/status`);
+    return res.json();
+  },
+  predictML: async (packetMeta) => {
+    const res = await fetch(`${API_BASE}/ml_predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(packetMeta),
+    });
+    return res.json();
+  },
+
+  // VERA Validation Center
+  getValidationStatus: async () => {
+    const res = await fetch(`${API_BASE}/validation/status`);
+    return res.json();
+  },
+  getValidationResults: async () => {
+    const res = await fetch(`${API_BASE}/validation/results`);
+    return res.json();
+  },
+  runValidation: async () => {
+    const res = await fetch(`${API_BASE}/validation/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return res.json();
+  },
+  getValidationReport: async (id = 'latest') => {
+    const res = await fetch(`${API_BASE}/validation/report?id=${encodeURIComponent(id)}`);
+    return res.json();
+  },
+  getValidationReports: async () => {
+    const res = await fetch(`${API_BASE}/validation/reports`);
+    return res.json();
+  },
+  getValidationScenarios: async () => {
+    const res = await fetch(`${API_BASE}/validation/scenarios`);
     return res.json();
   },
 };

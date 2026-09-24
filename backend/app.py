@@ -17,6 +17,8 @@ from firewall_manager import FirewallManager
 from system_monitor import SystemMonitor
 from packet_capture import packet_capture_mgr
 from demo_scenarios import DemoScenarios
+from ml_engine import ml_engine
+from validation_engine import validation_engine
 
 app = Flask(__name__)
 CORS(app)
@@ -598,13 +600,104 @@ def trigger_suspicious_traffic():
     res = DemoScenarios.simulate_suspicious_traffic()
     return jsonify(res)
 
+@app.route("/api/demo/simulate-ml-anomaly", methods=["POST"])
+def trigger_ml_anomaly():
+    auto_mit = GLOBAL_STATE.get("auto_mitigate", True)
+    res = DemoScenarios.simulate_ml_anomaly(auto_mitigate=auto_mit)
+    return jsonify(res)
+
 @app.route("/api/demo/clear", methods=["POST"])
 def trigger_clear_demo():
     res = DemoScenarios.clear_demo_events()
     return jsonify(res)
 
 # ==========================================
-# 10. REAL-TIME SERVER-SENT EVENTS (SSE)
+# 10. MACHINE LEARNING ENGINE APIS
+# ==========================================
+
+@app.route("/api/ml/status", methods=["GET"])
+def get_ml_status():
+    status = ml_engine.get_status()
+    return jsonify(status)
+
+@app.route("/ml_predict", methods=["POST"])
+@app.route("/api/ml_predict", methods=["POST"])
+@app.route("/api/ml/predict", methods=["POST"])
+def ml_predict():
+    data = request.json or {}
+    
+    # 1. Run inference directly on the real 77-feature Random Forest model
+    result = ml_engine.predict_packet(data)
+    
+    # 2. If evaluated for security mitigation, process packet metadata through detection pipeline
+    if data.get("evaluate_detection", True):
+        packet_meta = dict(data)
+        packet_meta["ml_result"] = {
+            "available": result.get("available"),
+            "is_anomaly": result.get("is_anomaly"),
+            "prediction": result.get("prediction"),
+            "anomaly_probability": result.get("anomaly_probability"),
+            "confidence_score": result.get("confidence_score"),
+            "inference_time_ms": result.get("inference_time_ms")
+        }
+        det_res = detection_engine.process_packet(packet_meta, auto_mitigate=GLOBAL_STATE.get("auto_mitigate", True))
+        result["detection_result"] = det_res
+        
+    return jsonify(result)
+
+# ==========================================
+# 11. VERA VALIDATION CENTER APIS
+# ==========================================
+
+@app.route("/api/validation/run", methods=["POST"])
+def run_validation_api():
+    try:
+        report = validation_engine.run_validation()
+        return jsonify(report)
+    except Exception as e:
+        return jsonify({"error": str(e), "status": "ERROR"}), 500
+
+@app.route("/api/validation/status", methods=["GET"])
+def get_validation_status():
+    return jsonify(validation_engine.get_status())
+
+@app.route("/api/validation/results", methods=["GET"])
+def get_validation_results():
+    results = validation_engine.get_latest_results()
+    if not results:
+        return jsonify({"has_results": False, "message": "No validation runs executed yet."}), 200
+    return jsonify(results)
+
+@app.route("/api/validation/report", methods=["GET"])
+def get_validation_report():
+    run_id = request.args.get("id", "latest")
+    report = validation_engine.get_report(run_id)
+    if not report:
+        return jsonify({"error": "Report not found"}), 404
+    return jsonify(report)
+
+@app.route("/api/validation/reports", methods=["GET"])
+def list_validation_reports():
+    reports = validation_engine.list_reports()
+    return jsonify({"reports": reports, "total": len(reports)})
+
+@app.route("/api/validation/scenarios", methods=["GET"])
+def get_validation_scenarios():
+    scenarios = validation_engine.get_ground_truth_scenarios()
+    summary = [{
+        "id": s["id"],
+        "name": s["name"],
+        "category": s["category"],
+        "description": s["description"],
+        "expected": s["expected"],
+        "expected_threat": s["expected_threat"],
+        "target_engine": s["target_engine"],
+        "packet_count": len(s["packets"])
+    } for s in scenarios]
+    return jsonify({"scenarios": summary, "total": len(summary)})
+
+# ==========================================
+# 12. REAL-TIME SERVER-SENT EVENTS (SSE)
 # ==========================================
 
 @app.route("/api/stream")

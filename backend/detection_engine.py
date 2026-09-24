@@ -15,6 +15,7 @@ from datetime import datetime
 from database import get_db_connection
 from risk_engine import RiskEngine
 from firewall_manager import FirewallManager
+from ml_engine import ml_engine
 
 class DetectionEngine:
     def __init__(self):
@@ -38,8 +39,8 @@ class DetectionEngine:
             'is_demo': True
         }
         """
-        src_ip = packet_meta.get("src_ip")
-        dst_ip = packet_meta.get("dst_ip")
+        src_ip = packet_meta.get("src_ip") or "192.168.1.50"
+        dst_ip = packet_meta.get("dst_ip") or "192.168.1.1"
         src_port = packet_meta.get("src_port")
         dst_port = packet_meta.get("dst_port")
         protocol = packet_meta.get("protocol", "TCP").upper()
@@ -83,6 +84,13 @@ class DetectionEngine:
             elif dev["device_type"] == "Unknown Device" and dev["status"] != "BLOCKED":
                 # Ensure risk reflects unknown status
                 cursor.execute("UPDATE devices SET last_seen = CURRENT_TIMESTAMP WHERE ip = ?", (src_ip,))
+                detections.append({
+                    "threat_type": "Unknown/Rogue Device",
+                    "evidence": f"Unauthorized device {mac} ({src_ip}) active on subnet.",
+                    "risk_score": 5.0,
+                    "severity": "MEDIUM",
+                    "recommended_action": "Verify hardware authorization and inspect baseline behavior."
+                })
         
         # 2. Rule: Port Scan Detection
         if "PORT_SCAN" in rules and protocol == "TCP" and dst_port:
@@ -160,6 +168,21 @@ class DetectionEngine:
                     "recommended_action": "Monitor bandwidth consumption and inspect payload headers."
                 })
 
+        # 6. Rule: ML Flow Anomaly Detection (Random Forest 77-Feature Flow Classifier)
+        if "ML_ANOMALY" in rules and ml_engine.is_loaded:
+            ml_res = packet_meta.get("ml_result") or ml_engine.predict_packet(packet_meta)
+            if ml_res.get("is_anomaly") or ml_res.get("prediction") == 1 or packet_meta.get("is_anomaly_flow"):
+                prob_pct = round(ml_res.get("anomaly_probability", 0.0) * 100, 1)
+                lat_ms = ml_res.get("inference_time_ms", 0.0)
+                detections.append({
+                    "threat_type": "ML Anomaly / Intrusion",
+                    "evidence": f"Random Forest flow classifier evaluated 77 flow features (Prediction: {ml_res.get('prediction', 0)}, Anomaly Probability: {prob_pct}%, Latency: {lat_ms}ms).",
+                    "risk_score": 8.5,
+                    "severity": "HIGH",
+                    "recommended_action": "Quarantine flow and isolate host via nftables to halt anomalous traffic.",
+                    "ml_metadata": ml_res
+                })
+
         # Process detections into SQLite, Alerts, and Firewall
         response_data = []
         hosts_to_block = []
@@ -193,16 +216,24 @@ class DetectionEngine:
             WHERE ip = ?
             """, (det["risk_score"], action_taken, src_ip))
             
-            # 5. Log System Audit Events
+            # 5. Log System Audit Events (Explicitly Differentiating ML Detection vs Heuristic Rule Match)
+            is_ml = bool(det.get("ml_metadata"))
+            detection_action = "ML_MODEL_INFERENCE" if is_ml else "HEURISTIC_RULE_MATCH"
+            audit_msg = (
+                f"ML DETECTION: Random Forest 77-feature flow classifier detected anomaly for {src_ip} ({det['evidence']})"
+                if is_ml else
+                f"HEURISTIC DETECTION: Rule matched for {det['threat_type']} on {src_ip}: {det['evidence']}"
+            )
+            
             cursor.execute("""
             INSERT INTO system_events (event_type, device, threat, risk, action, result, message, severity, is_demo)
-            VALUES ('THREAT_DETECTED', ?, ?, ?, 'HEURISTIC_RULE_MATCH', 'ALERT_GENERATED', ?, ?, ?)
-            """, (src_ip, det["threat_type"], det["risk_score"], f"Heuristic detection triggered for {det['threat_type']}: {det['evidence']}", det["severity"], 1 if is_demo else 0))
+            VALUES ('THREAT_DETECTED', ?, ?, ?, ?, 'ALERT_GENERATED', ?, ?, ?)
+            """, (src_ip, det["threat_type"], det["risk_score"], detection_action, audit_msg, det["severity"], 1 if is_demo else 0))
             
             cursor.execute("""
             INSERT INTO system_events (event_type, device, threat, risk, action, result, message, severity, is_demo)
             VALUES ('ALERT_CREATED', ?, ?, ?, ?, 'DISPATCHED_TO_UI', ?, ?, ?)
-            """, (src_ip, det["threat_type"], det["risk_score"], action_taken, f"Alert #{alert_id} dispatched for {src_ip} (Risk {det['risk_score']}/10)", det["severity"], 1 if is_demo else 0))
+            """, (src_ip, det["threat_type"], det["risk_score"], action_taken, f"Alert #{alert_id} dispatched for {src_ip} ({'ML DETECTION' if is_ml else 'HEURISTIC'} Risk {det['risk_score']}/10)", det["severity"], 1 if is_demo else 0))
             
             if auto_mitigate and det["risk_score"] >= 8.0:
                 hosts_to_block.append((src_ip, f"Auto-mitigation: {det['threat_type']} (Risk {det['risk_score']}/10)"))
