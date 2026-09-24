@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #070B14;
+    color: #F8FAFC;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Custom Scrollbar for high-density tables and logs */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070B14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E2C48;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2A3C5F;
+}
+
+/* Subtle glow for critical alerts only (avoiding excessive gaming neon) */
+.threat-pulse-critical {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+}
+
+.threat-pulse-high {
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
+}
